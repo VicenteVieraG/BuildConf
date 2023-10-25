@@ -1,6 +1,8 @@
 Param(
     [Parameter()]
-    [switch]$run 
+    [switch]$init,
+    [switch]$run,
+    [switch]$rel
 );
 [string]$ExeName;
 
@@ -12,16 +14,29 @@ try {
         Remove-Item -Path build -Force -Recurse -ErrorAction Stop;
     }
     
-    New-Item -Path .\ -Name build -ItemType Directory -ErrorAction Stop;
-    Set-Location -Path .\build;
-    Invoke-Expression -Command "cmake .." -ErrorAction Stop;
-    Invoke-Expression -Command "cmake --build ." -ErrorAction Stop;
+    # Creating and configuring the build directory.
+    New-Item -Path $PSScriptRoot -Name build -ItemType Directory -ErrorAction Stop;
+    Set-Location -Path $PSScriptRoot\build -ErrorAction Stop;
 
+    # Build type configuration.
+    if($rel){
+        Invoke-Expression -Command "cmake .. -DCMAKE_BUILD_TYPE=Release" -ErrorAction Stop;
+    }else{
+        Invoke-Expression -Command "cmake .. -DCMAKE_BUILD_TYPE=Debug --graphviz=Dependencies.dot" -ErrorAction Stop;
+    }
+
+    # Run executable.
     if($run){
-        Set-Location -Path .\app\debug -ErrorAction Stop;
-        $ExeName = Invoke-Expression "dir *.exe" | Select-Object -ExpandProperty Name -ErrorAction Stop;
-        Write-Host -Object "-[Executing: $ExeName]" -BackgroundColor Blue -ForegroundColor Black;
-        Invoke-Expression -Command ".\$ExeName" -ErrorAction Stop;
+        try{
+            Set-Location -Path $PSScriptRoot\app\debug -ErrorAction Stop;
+    
+            $ExeName = Invoke-Expression "dir *.exe" | Select-Object -ExpandProperty Name -ErrorAction Stop;
+            Write-Host -Object "-[Executing: $ExeName]" -BackgroundColor Blue -ForegroundColor Black;
+            Invoke-Expression -Command ".\$ExeName" -ErrorAction Stop;
+        }catch{
+            Write-Host -Object "-[Error Running Executable]" -BackgroundColor Red -ForegroundColor Black;
+            Set-Location -Path $PSScriptRoot -ErrorAction Ignore;
+        }
     }
 
     Set-Location -Path $PSScriptRoot -ErrorAction Ignore;
