@@ -11,7 +11,7 @@ try {
 
     # Check if the build folder exists.
     if(Join-Path -Path $PSScriptRoot -ChildPath build | Test-Path){
-        Remove-Item -Path build -Force -Recurse -ErrorAction Stop;
+        Remove-Item -Path $PSScriptRoot\build -Force -Recurse -ErrorAction Stop;
     }
     
     # Creating and configuring the build directory.
@@ -19,16 +19,13 @@ try {
     Set-Location -Path $PSScriptRoot\build -ErrorAction Stop;
 
     # Build type configuration.
-    if($rel){
-        Invoke-Expression -Command "cmake .. -DCMAKE_BUILD_TYPE=Release" -ErrorAction Stop;
-    }else{
-        Invoke-Expression -Command "cmake .. -DCMAKE_BUILD_TYPE=Debug --graphviz=Dependencies.dot" -ErrorAction Stop;
-    }
+    Invoke-Expression -Command "cmake .. -DCMAKE_BUILD_TYPE=${$rel? "Release" : "Debug"} --graphviz=Dependencies.dot" -ErrorAction Stop;
+    Invoke-Expression -Command "cmake --build ." -ErrorAction Stop;
 
     # Run executable.
     if($run){
         try{
-            Set-Location -Path $PSScriptRoot\app\debug -ErrorAction Stop;
+            Set-Location -Path $PSScriptRoot\build\app\Debug -ErrorAction Stop;
     
             $ExeName = Invoke-Expression "dir *.exe" | Select-Object -ExpandProperty Name -ErrorAction Stop;
             Write-Host -Object "-[Executing: $ExeName]" -BackgroundColor Blue -ForegroundColor Black;
