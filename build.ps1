@@ -1,3 +1,81 @@
+<#
+.SYNOPSIS
+Create, build, and debug C++ proyects using CMake with ease.
+
+.DESCRIPTION
+Script to help managing CMake proyects using C++.
+Creates an advanced proyect folder structure ensuring
+efficiency mahaging all your proyect files. The script takes care of
+the CMake configurations needed to build and debug your proyect.
+
+.PARAMETER init
+Creates a new C++ proyect in the scripts current folder.
+If the parameter git is used alongside init, it will create a local git repo
+and if gith is used, a remote repo will be created with the selected name.
+
+.PARAMETER run
+If enabeled, this parameter runs the executable after build.
+
+.PARAMETER rel
+Sets the build mode to release.
+If ommited, will build with debug mode by default.
+
+.PARAMETER gen
+Sets the generator used by CMake to build the proyect.
+You can select the generator form the following list:
+
+- Unix Makefiles
+- MinGW Makefiles
+- Ninja
+- JOM
+
+Set a generator in the following way:
+
+.\build -gen="Ninja"
+.PARAMETER graph
+Wether or not to build a graphviz document containing a visualization of the
+dependency tree.
+This option is enabled by default.
+
+.INPUTS
+Switch values.
+The script can verify wether or not the switch flags have been added.
+
+Strings.
+Some parameters require an string as a value. The string needs to be between "".
+.OUTPUTS
+If init is selected, the program will create the following folder structure:
+
+SCRIPT_ROOT:
+|- app: // Contains the main files of your application.
+    |- CMakeLists.txt
+|- external: // Used to include Git submodules.
+|- include: // Contains all your header files.
+    |- CMakeLists.txt
+|- src: // Contains your actual source files.
+    |- CMakeLists.txt
+|- CMakeLists.txt
+|- build.ps1
+|- .gitignore // If git or gith options are enabeled.
+
+.EXAMPLE
+.NOTES
+Author: VicenteVieraG
+
+To dos:
+- Validate if the selected generator exists in the system and warn the user if it doesn't.
+- Create the init configuration.
+    - Implement the template switch parameter to generate the initial files.
+        - Add different template variables and styles.
+- Implement the git and gith parameters functions.
+- Validate parameters.
+    - Validation for init
+        - init can only used with the parameters template, git or gith.
+.LINK
+Link to repo:
+https://github.com/VicenteVieraG/BuildConf
+#>
+
 Param(
     [Parameter()]
     [switch]$init,
@@ -16,9 +94,13 @@ Param(
 [string]$ExeName;
 [string]$CMakeCommand;
 [string]$BuildType = if ($rel) { "Release" } else { "Debug" };
-[string]$DependenciesGraph = if ($graph) { " --graphviz=Dependencies.dot" } else { "" };
+[string]$DependenciesGraph = if ($graph) { "--graphviz=Dependencies.dot" } else { "" };
 
-$CMakeCommand = "cmake .. -G `"$gen`" -DCMAKE_BUILD_TYPE=$BuildType$DependenciesGraph";
+$CMakeCommand =
+"cmake .. " `
+    + "-G `"$gen`"" `
+    + "-DCMAKE_BUILD_TYPE=$BuildType "`
+    + "$DependenciesGraph";
 
 try {
     Write-Host -Object "-[Starting Build]" -BackgroundColor Blue -ForegroundColor Black;
@@ -63,7 +145,7 @@ try {
     # Run executable.
     if ($run) {
         try {
-            Set-Location -Path $PSScriptRoot\build\app\Debug -ErrorAction Stop;
+            Set-Location -Path $PSScriptRoot\build\app\bin -ErrorAction Stop;
     
             $ExeName = Invoke-Expression "dir *.exe" | Select-Object -ExpandProperty Name -ErrorAction Stop;
             Write-Host -Object "-[Executing: $ExeName]" -BackgroundColor Blue -ForegroundColor Black;
