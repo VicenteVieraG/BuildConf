@@ -121,7 +121,56 @@ if ($init) {
     }
 
     $DirectoryInfoList | Format-Table Mode, LastWriteTime, Name -AutoSize;
-    Write-Host -Object "-[Folder Structure Created]" -BackgroundColor Green -ForegroundColor Black;
+    Write-Host -Object "-[Folder Structure Created]`n" -BackgroundColor Green -ForegroundColor Black;
+
+    Write-Host -Object "-[Creating CMakeLists Configurations]" -BackgroundColor Blue -ForegroundColor Black;
+    
+    # Creating the CMakeLists root file.
+    [string]$CMakeVersion = Invoke-Expression "cmake --version" -ErrorAction Stop;
+    if ($CMakeVersion -match "\d+\.\d+\.\d+") {
+        $CMakeVersion = $Matches[0];
+        Write-Host -Object "-[CMake Version Found]: $CMakeVersion"
+    }
+    else {
+        Write-Host -Object "-[No CMake Version Found]" -BackgroundColor Red -ForegroundColor Black;
+    }
+
+    [string]$CMakeListsRoot = 
+    @"
+cmake_minimum_required(VERSION $CMakeVersion)
+
+project(__PROJECT_NAME__ VERSION 0.0.0 LANGUAGES C CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_COMPILER C:\\mingw64\\bin\\clang++)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY `${CMAKE_BINARY_DIR}\\bin)
+
+add_subdirectory(config)
+add_subdirectory(external)
+add_subdirectory(src)
+add_subdirectory(include)
+add_subdirectory(app)
+"@
+
+    $FileInfoList = New-Object System.Collections.Generic.List[[System.IO.FileInfo]];
+
+    $Folders | ForEach-Object -Begin {
+        [System.IO.FileInfo]$RootFile =
+        New-Item -Path $PSScriptRoot -Name CMakeLists.txt -ItemType File -Value $CMakeListsRoot -Force -ErrorAction Stop;
+        
+        $FileInfoList.Add($RootFile);
+    } -Process {
+        [System.IO.FileInfo]$File =
+        New-Item -Path $PSScriptRoot\$_ -Name CMakeLists.txt -ItemType File -Force -ErrorAction Stop;
+        
+        $FileInfoList.Add($File);
+    } -End {
+        $FileInfoList | Format-Table Mode, LastWriteTime, Lenght, Name -AutoSize;
+    }
+
+    Write-Host -Object "-[CMakeLists Configured]" -BackgroundColor Green -ForegroundColor Black;
 }
 # Else Created for debug purposes future delete.
 else {
@@ -187,4 +236,3 @@ else {
         Set-Location -Path $PSScriptRoot;
     }
 }
-
