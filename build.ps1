@@ -32,6 +32,7 @@ You can select the generator form the following list:
 Set a generator in the following way:
 
 .\build -gen="Ninja"
+
 .PARAMETER graph
 Wether or not to build a graphviz document containing a visualization of the
 dependency tree.
@@ -42,7 +43,8 @@ Switch values.
 The script can verify wether or not the switch flags have been added.
 
 Strings.
-Some parameters require an string as a value. The string needs to be between "".
+Some parameters require an string as a value. The string needs to be between "" or ''.
+
 .OUTPUTS
 If init is selected, the program will create the following folder structure:
 
@@ -71,6 +73,7 @@ To dos:
 - Validate parameters.
     - Validation for init
         - init can only used with the parameters template, git or gith.
+
 .LINK
 Link to repo:
 https://github.com/VicenteVieraG/BuildConf
@@ -98,68 +101,90 @@ Param(
 
 $CMakeCommand =
 "cmake .. " `
-    + "-G `"$gen`"" `
+    + "-G `"$gen`" " `
     + "-DCMAKE_BUILD_TYPE=$BuildType "`
     + "$DependenciesGraph";
 
-try {
-    Write-Host -Object "-[Starting Build]" -BackgroundColor Blue -ForegroundColor Black;
+$Folders = @("app", "config", "external", "include", "src");
 
-    # Check if the build folder exists.
-    if (Join-Path -Path $PSScriptRoot -ChildPath build | Test-Path) {
-        Remove-Item -Path $PSScriptRoot\build -Force -Recurse -ErrorAction Stop;
-    }
+if ($init) {
+    Write-Host -Object "-[Initializing Proyect]" -BackgroundColor Blue -ForegroundColor Black;
+
+    # Create the folder structure.
+    $DirectoryInfoList = New-Object System.Collections.Generic.List[[System.IO.DirectoryInfo]];
+
+    foreach ($folder in $Folders) {
+        [System.IO.DirectoryInfo]$NewFolder =
+        New-Item -Path $PSScriptRoot -Name $folder -ItemType Directory -Force -ErrorAction Stop;
     
-    # Creating and configuring the build directory.
-    New-Item -Path $PSScriptRoot -Name build -ItemType Directory -ErrorAction Stop;
-    Set-Location -Path $PSScriptRoot\build -ErrorAction Stop;
+        $DirectoryInfoList.Add($NewFolder);
+    }
 
-    # Build process.
+    $DirectoryInfoList | Format-Table Mode, LastWriteTime, Name -AutoSize;
+    Write-Host -Object "-[Folder Structure Created]" -BackgroundColor Green -ForegroundColor Black;
+}
+# Else Created for debug purposes future delete.
+else {
     try {
-        # Configure Build files generation.
-        Invoke-Expression -Command $CMakeCommand -ErrorAction Stop;
-        Write-Host -Object "-[Build Files Created]" -BackgroundColor Blue -ForegroundColor Black;
-        Write-Host -Object $CMakeCommand -BackgroundColor Blue -ForegroundColor Black;
+        Write-Host -Object "-[Starting Build]" -BackgroundColor Blue -ForegroundColor Black;
+    
+        # Check if the build folder exists.
+        if (Join-Path -Path $PSScriptRoot -ChildPath build | Test-Path) {
+            Remove-Item -Path $PSScriptRoot\build -Force -Recurse -ErrorAction Stop;
+        }
         
-        # Build process configuration.
+        # Creating and configuring the build directory.
+        New-Item -Path $PSScriptRoot -Name build -ItemType Directory -ErrorAction Stop;
+        Set-Location -Path $PSScriptRoot\build -ErrorAction Stop;
+    
+        # Build process.
         try {
-            switch ($gen) {
-                "MinGW Makefiles" {
-                    Invoke-Expression -Command "cmake --build ." -ErrorAction Stop;
+            # Configure Build files generation.
+            Invoke-Expression -Command $CMakeCommand -ErrorAction Stop;
+            Write-Host -Object "-[Build Files Created]" -BackgroundColor Green -ForegroundColor Black;
+            Write-Host -Object $CMakeCommand -BackgroundColor Blue -ForegroundColor Black;
+            
+            # Build process configuration.
+            try {
+                switch ($gen) {
+                    "MinGW Makefiles" {
+                        Invoke-Expression -Command "cmake --build ." -ErrorAction Stop;
+                    }
+                    "Ninja" {
+                        Invoke-Expression -Command "Ninja" -ErrorAction Stop;
+                    }
                 }
-                "Ninja" {
-                    Invoke-Expression -Command "Ninja" -ErrorAction Stop;
-                }
+            }
+            catch {
+                Write-Host -Object "-[Error While Building Project]" -BackgroundColor Red -ForegroundColor Black;
+                Set-Location -Path $PSScriptRoot;
             }
         }
         catch {
-            Write-Host -Object "-[Error While Building Project]" -BackgroundColor Red -ForegroundColor Black;
+            Write-Host -Object "-[Error While Generating Build Files]" -BackgroundColor Red -ForegroundColor Black;
             Set-Location -Path $PSScriptRoot;
         }
+        
+        # Run executable.
+        if ($run) {
+            try {
+                Set-Location -Path $PSScriptRoot\build\app\bin -ErrorAction Stop;
+        
+                $ExeName = Invoke-Expression "dir *.exe" | Select-Object -ExpandProperty Name -ErrorAction Stop;
+                Write-Host -Object "-[Executing: $ExeName]" -BackgroundColor Blue -ForegroundColor Black;
+                Invoke-Expression -Command ".\$ExeName" -ErrorAction Stop;
+            }
+            catch {
+                Write-Host -Object "-[Error Running Executable]" -BackgroundColor Red -ForegroundColor Black;
+                Set-Location -Path $PSScriptRoot -ErrorAction Ignore;
+            }
+        }
+    
+        Set-Location -Path $PSScriptRoot -ErrorAction Ignore;
     }
     catch {
-        Write-Host -Object "-[Error While Generating Build Files]" -BackgroundColor Red -ForegroundColor Black;
+        Write-Host -Object "-[Unspected Error]" -BackgroundColor Red -ForegroundColor Black;
         Set-Location -Path $PSScriptRoot;
     }
-    
-    # Run executable.
-    if ($run) {
-        try {
-            Set-Location -Path $PSScriptRoot\build\app\bin -ErrorAction Stop;
-    
-            $ExeName = Invoke-Expression "dir *.exe" | Select-Object -ExpandProperty Name -ErrorAction Stop;
-            Write-Host -Object "-[Executing: $ExeName]" -BackgroundColor Blue -ForegroundColor Black;
-            Invoke-Expression -Command ".\$ExeName" -ErrorAction Stop;
-        }
-        catch {
-            Write-Host -Object "-[Error Running Executable]" -BackgroundColor Red -ForegroundColor Black;
-            Set-Location -Path $PSScriptRoot -ErrorAction Ignore;
-        }
-    }
+}
 
-    Set-Location -Path $PSScriptRoot -ErrorAction Ignore;
-}
-catch {
-    Write-Host -Object "-[Unspected Error]" -BackgroundColor Red -ForegroundColor Black;
-    Set-Location -Path $PSScriptRoot;
-}
